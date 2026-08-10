@@ -1,0 +1,62 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Region {
+  id         String      @id
+  name       String
+  type       String      // "PROVINCE" | "REGENCY"
+  parentId   String?     // Optional self-relation for linking regencies to provinces
+  parent     Region?     @relation("RegionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Region[]    @relation("RegionHierarchy")
+  area       Float       // in km²
+  latitude   Float
+  longitude  Float
+  dataPoints DataPoint[]
+}
+
+model DataSource {
+  id       String    @id @default(cuid())
+  name     String
+  url      String?
+  datasets Dataset[]
+}
+
+model Dataset {
+  id           String      @id @default(cuid())
+  title        String
+  description  String
+  category     String      // "EKONOMI" | "PENDIDIKAN" | "KESEHATAN" | "INFRASTRUKTUR" | "LINGKUNGAN" | "UMKM" | "DEMOGRAFI"
+  status       String      // "Verified" | "Official" | "Demo" | "Archived"
+  unit         String
+  methodology  String?
+  updatedAt    DateTime    @updatedAt
+  dataSourceId String
+  dataSource   DataSource  @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  indicators   Indicator[]
+}
+
+model Indicator {
+  id         String      @id @default(cuid())
+  name       String
+  code       String      @unique // e.g., "POPULATION", "POVERTY_RATE", "LITERACY_RATE", "INTERNET_ACCESS", "HEALTH_FACILITIES", "UMKM_COUNT", "PDRB_VALUE", "UNEMPLOYMENT_RATE"
+  datasetId  String
+  dataset    Dataset     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  dataPoints DataPoint[]
+}
+
+model DataPoint {
+  id          String    @id @default(cuid())
+  regionId    String
+  region      Region    @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  indicatorId String
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  year        Int
+  value       Float
+
+  @@unique([regionId, indicatorId, year])
+}
