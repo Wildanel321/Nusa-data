@@ -20,6 +20,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Authorization check for dataset import (OWASP A01)
+    const authHeader = request.headers.get("Authorization");
+    const configuredApiKey = process.env.ADMIN_API_KEY || "nusadata-admin-secret-key";
+
+    if (!authHeader || authHeader !== `Bearer ${configuredApiKey}`) {
+      return NextResponse.json(
+        { message: "Unauthorized: Invalid or missing ADMIN_API_KEY token." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate payload against Zod schema

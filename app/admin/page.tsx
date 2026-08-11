@@ -14,7 +14,8 @@ import {
   DatabaseZap,
   ArrowRight,
   Play,
-  FileText
+  FileText,
+  Landmark
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,10 @@ export default function AdminPage() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [successInfo, setSuccessInfo] = useState<any>(null);
+
+  // Reseed / Database status updater states
+  const [adminKey, setAdminKey] = useState("");
+  const [reseedLoading, setReseedLoading] = useState(false);
 
   // Default Template CSV generator for users
   const generateTemplateCSV = () => {
@@ -150,21 +155,37 @@ export default function AdminPage() {
     setStep(2);
   };
 
+  // Sanitize potential CSV Formula Injections (OWASP A03)
+  const sanitizeInput = (val: string): string => {
+    if (val.startsWith("=") || val.startsWith("+") || val.startsWith("-") || val.startsWith("@")) {
+      return `'${val}`;
+    }
+    return val;
+  };
+
   // Submit and save to database / mock provider API
   const handleImport = async () => {
+    if (!adminKey) {
+      alert("Mohon masukkan Admin API Key Anda di kolom bawah terlebih dahulu untuk otorisasi impor data.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/datasets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminKey}`
+        },
         body: JSON.stringify({
           metadata: {
-            title,
-            description,
+            title: sanitizeInput(title),
+            description: sanitizeInput(description),
             category,
-            status: "Demo", // admin uploads in demo status
-            unit,
-            methodology,
+            status: "Official", // imported data is set to Official
+            unit: sanitizeInput(unit),
+            methodology: sanitizeInput(methodology),
             dataSourceId,
           },
           dataPoints: parsedData,
@@ -184,6 +205,37 @@ export default function AdminPage() {
       alert("Terjadi kesalahan koneksi server saat mengimpor.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatusToOfficial = async () => {
+    if (!adminKey) {
+      alert("Mohon masukkan Admin API Key terlebih dahulu.");
+      return;
+    }
+
+    setReseedLoading(true);
+    try {
+      const res = await fetch("/api/admin/reseed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminKey}`,
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Sukses! ${data.updatedCount} dataset di database produksi Anda berhasil diubah statusnya menjadi 'Official'. Silakan muat ulang halaman visualisasi data.`);
+        setAdminKey("");
+      } else {
+        alert(`Gagal memperbarui status: ${data.message}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan koneksi server.");
+    } finally {
+      setReseedLoading(false);
     }
   };
 
@@ -544,6 +596,43 @@ export default function AdminPage() {
           </div>
         </Card>
       )}
+
+      {/* Database Status Updater Card (Always visible at the bottom) */}
+      <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+        <Card className="border-slate-200 bg-white dark:border-slate-800 text-xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-navy-950 dark:text-white flex items-center gap-2">
+              <Landmark className="h-4.5 w-4.5 text-navy-900" /> Pengelolaan Status Database Produksi
+            </CardTitle>
+            <CardDescription className="text-[10px] text-slate-400">
+              Ubah status seluruh indikator pembangunan di database produksi Anda dari "Demo" menjadi "Official" secara instant.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div className="space-y-1.5 flex-1">
+                <label className="font-semibold text-slate-655 dark:text-slate-350 block text-[10px] uppercase tracking-wider">
+                  Admin API Key (Authorization Token)
+                </label>
+                <Input 
+                  type="password" 
+                  placeholder="Masukkan Token Admin API Key (Default: nusadata-admin-secret-key)"
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  className="h-9 border-slate-200"
+                />
+              </div>
+              <Button
+                onClick={handleUpdateStatusToOfficial}
+                disabled={reseedLoading}
+                className="rounded-xl bg-navy-900 hover:bg-navy-950 text-white font-semibold flex items-center gap-1.5 h-9 cursor-pointer disabled:opacity-50 text-xs px-4"
+              >
+                {reseedLoading ? "Memproses..." : "Setel Status ke Official"} <CheckCircle2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
     </div>
   );
