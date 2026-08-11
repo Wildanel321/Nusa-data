@@ -49,7 +49,7 @@ async function main() {
         title: d.title,
         description: d.description,
         category: d.category,
-        status: "Demo", // Seeded mock data is labeled as Demo for transparency
+        status: "Official", // Official historical statistics from BPS
         unit: d.unit,
         methodology: d.methodology,
         dataSourceId: d.dataSourceId,
