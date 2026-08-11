@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Map, Database, ArrowRight, Search, BarChart3, Users, Network, Landmark, CheckCircle, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import dataProvider from "@/lib/providers";
 
 // Small count-up utility component
 function CountUpNumber({ end, suffix = "", duration = 1500 }: { end: number; suffix?: string; duration?: number }) {
@@ -41,6 +42,22 @@ function CountUpNumber({ end, suffix = "", duration = 1500 }: { end: number; suf
 export default function Homepage() {
   const router = useRouter();
   const [searchVal, setSearchVal] = useState("");
+  const [isDemoData, setIsDemoData] = useState(true);
+
+  useEffect(() => {
+    async function checkProvider() {
+      try {
+        const datasetsList = await dataProvider.getDatasets();
+        const hasOfficial = datasetsList.some(
+          (d: any) => d.status === "Official" || d.status === "Verified"
+        );
+        setIsDemoData(!hasOfficial);
+      } catch (error) {
+        // Keep as demo if fetch fails
+      }
+    }
+    checkProvider();
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,19 +243,21 @@ export default function Homepage() {
       </section>
 
       {/* Demo Warning Banner */}
-      <section className="w-full max-w-4xl px-4 pb-12 sm:px-6">
-        <div className="flex gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl dark:bg-amber-950/20 dark:border-amber-900/30">
-          <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-xs text-amber-800 dark:text-amber-500 uppercase tracking-wider">
-              ⚠️ Platform Demo & Transparansi Data
-            </h4>
-            <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-1 leading-relaxed">
-              Platform NusaData ini dijalankan dalam status <strong>Demo Mode (Simulasi Data)</strong>. Seluruh data historis dari 2021 hingga 2026 disimulasikan secara realistis berdasarkan baseline BPS. Untuk menghubungkan dengan database produksi PostgreSQL milik Anda, silakan konfigurasikan file <code>.env</code> dan migrasikan skema database Prisma.
-            </p>
+      {isDemoData && (
+        <section className="w-full max-w-4xl px-4 pb-12 sm:px-6">
+          <div className="flex gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl dark:bg-amber-950/20 dark:border-amber-900/30">
+            <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-xs text-amber-800 dark:text-amber-500 uppercase tracking-wider">
+                ⚠️ Platform Demo & Transparansi Data
+              </h4>
+              <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-1 leading-relaxed">
+                Platform NusaData ini dijalankan dalam status <strong>Demo Mode (Simulasi Data)</strong>. Seluruh data historis dari 2021 hingga 2026 disimulasikan secara realistis berdasarkan baseline BPS. Untuk menghubungkan dengan database produksi PostgreSQL milik Anda, silakan konfigurasikan file <code>.env</code> dan migrasikan skema database Prisma.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
     </div>
   );
